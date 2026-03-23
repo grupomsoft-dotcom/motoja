@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { supabase } from '../lib/supabase'
 import MapaMotorista from '../components/MapaMotorista'
 
+
 export default function MotoristaDashboard() {
   const [corridaAtual, setCorridaAtual] = useState(null)
   const [status, setStatus] = useState('disponivel')
