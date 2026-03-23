@@ -9,7 +9,7 @@ import HistoricoMotorista from './pages/HistoricoMotorista'
 
 function App() {
   const { session, loading } = useAuth()
-  const [view, setView] = useState('passageiro') // ou 'historico_passageiro', 'motorista', 'historico_motorista'
+  const [view, setView] = useState('passageiro')
   const [perfil, setPerfil] = useState(null)
   const [perfilLoading, setPerfilLoading] = useState(true)
 
@@ -34,7 +34,6 @@ function App() {
       setPerfil(data)
       setPerfilLoading(false)
 
-      // define visão padrão baseado na role
       if (data?.role === 'motorista') {
         setView('motorista')
       } else {
@@ -48,7 +47,9 @@ function App() {
   if (loading || perfilLoading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-500 to-purple-600">
-        <div className="text-white text-2xl animate-pulse">🚀 Carregando MOTOJÁ...</div>
+        <div className="text-white text-xl animate-pulse px-4 text-center">
+          🚀 Carregando MOTOJÁ...
+        </div>
       </div>
     )
   }
@@ -61,35 +62,47 @@ function App() {
   const isPassageiro = !isMotorista
 
   return (
-    <>
+    <div className="min-h-screen flex flex-col bg-slate-900">
       {/* Barra superior */}
-      <div className="bg-gradient-to-br from-blue-500 to-purple-600 p-6">
-        <div className="max-w-4xl mx-auto space-y-4">
-          <header className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
-            <div className="flex items-center gap-4">
-              <h1 className="text-3xl md:text-4xl font-bold text-white drop-shadow-lg">🚀 MOTOJÁ</h1>
-              <span className="bg-white/20 px-4 py-2 rounded-full text-white text-xs md:text-sm font-bold">
-                {perfil?.nome || session.user.email} ({perfil?.role || 'sem perfil'})
+      <div className="bg-gradient-to-br from-blue-500 to-purple-600 px-4 py-3 sm:px-6 sm:py-4 shadow-lg">
+        <div className="max-w-4xl mx-auto">
+          <header className="flex items-center justify-between gap-3">
+            <div className="flex items-center gap-3 min-w-0">
+              <h1 className="text-2xl sm:text-3xl font-bold text-white drop-shadow">
+                🚀 MOTOJÁ
+              </h1>
+              <span className="hidden sm:inline-flex bg-white/20 px-3 py-1 rounded-full text-white text-xs font-semibold truncate">
+                {perfil?.nome || session.user.email}
               </span>
             </div>
             <button
               onClick={() => supabase.auth.signOut()}
-              className="self-start md:self-auto bg-white/20 hover:bg-white/30 px-5 py-2 rounded-2xl text-white text-sm font-bold transition-all shadow-lg"
+              className="shrink-0 bg-white/15 hover:bg-white/25 px-3 py-1.5 rounded-xl text-white text-xs sm:text-sm font-semibold transition"
             >
               Sair
             </button>
           </header>
 
-          {/* Menus separados por tipo de usuário */}
-          <div className="flex flex-wrap gap-3">
+          {/* Badge pequena com função/role no mobile */}
+          <div className="mt-2 flex items-center justify-between">
+            <span className="inline-flex sm:hidden bg-white/15 px-2.5 py-1 rounded-full text-[11px] text-white font-medium">
+              {perfil?.nome || session.user.email}
+            </span>
+            <span className="ml-auto bg-black/20 px-2.5 py-0.5 rounded-full text-[11px] text-white/90 uppercase tracking-wide">
+              {perfil?.role || 'sem perfil'}
+            </span>
+          </div>
+
+          {/* Menus separados */}
+          <div className="mt-3 flex flex-wrap gap-2">
             {isPassageiro && (
               <>
                 <button
                   onClick={() => setView('passageiro')}
-                  className={`px-4 py-2 rounded-full text-xs md:text-sm font-bold ${
+                  className={`px-3 py-1.5 rounded-full text-xs font-semibold ${
                     view === 'passageiro'
-                      ? 'bg-emerald-500 text-white'
-                      : 'bg-white/20 text-white hover:bg-white/30'
+                      ? 'bg-emerald-400 text-slate-900'
+                      : 'bg-white/15 text-white hover:bg-white/25'
                   }`}
                 >
                   Passageiro
@@ -97,10 +110,10 @@ function App() {
 
                 <button
                   onClick={() => setView('historico_passageiro')}
-                  className={`px-4 py-2 rounded-full text-xs md:text-sm font-bold ${
+                  className={`px-3 py-1.5 rounded-full text-xs font-semibold ${
                     view === 'historico_passageiro'
-                      ? 'bg-slate-700 text-white'
-                      : 'bg-white/20 text-white hover:bg-white/30'
+                      ? 'bg-slate-800 text-white'
+                      : 'bg-white/15 text-white hover:bg-white/25'
                   }`}
                 >
                   Histórico de corridas
@@ -112,10 +125,10 @@ function App() {
               <>
                 <button
                   onClick={() => setView('motorista')}
-                  className={`px-4 py-2 rounded-full text-xs md:text-sm font-bold ${
+                  className={`px-3 py-1.5 rounded-full text-xs font-semibold ${
                     view === 'motorista'
-                      ? 'bg-orange-500 text-white'
-                      : 'bg-white/20 text-white hover:bg-white/30'
+                      ? 'bg-orange-400 text-slate-900'
+                      : 'bg-white/15 text-white hover:bg-white/25'
                   }`}
                 >
                   Motorista
@@ -123,10 +136,10 @@ function App() {
 
                 <button
                   onClick={() => setView('historico_motorista')}
-                  className={`px-4 py-2 rounded-full text-xs md:text-sm font-bold ${
+                  className={`px-3 py-1.5 rounded-full text-xs font-semibold ${
                     view === 'historico_motorista'
-                      ? 'bg-slate-700 text-white'
-                      : 'bg-white/20 text-white hover:bg-white/30'
+                      ? 'bg-slate-800 text-white'
+                      : 'bg-white/15 text-white hover:bg-white/25'
                   }`}
                 >
                   Histórico de atendimentos
@@ -137,13 +150,15 @@ function App() {
         </div>
       </div>
 
-      {/* Conteúdo principal */}
-      {isPassageiro && view === 'passageiro' && <PassageiroDashboard />}
-      {isPassageiro && view === 'historico_passageiro' && <HistoricoPassageiro />}
+      {/* Conteúdo principal ocupa o resto da tela */}
+      <div className="flex-1">
+        {isPassageiro && view === 'passageiro' && <PassageiroDashboard />}
+        {isPassageiro && view === 'historico_passageiro' && <HistoricoPassageiro />}
 
-      {isMotorista && view === 'motorista' && <MotoristaDashboard />}
-      {isMotorista && view === 'historico_motorista' && <HistoricoMotorista />}
-    </>
+        {isMotorista && view === 'motorista' && <MotoristaDashboard />}
+        {isMotorista && view === 'historico_motorista' && <HistoricoMotorista />}
+      </div>
+    </div>
   )
 }
 
