@@ -1,9 +1,9 @@
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom'
 import { lazy, Suspense } from 'react'
-import { AuthProvider, useAuth } from './hooks/useAuth' // Importação nomeada correta
+import { AuthProvider, useAuth } from './hooks/useAuth' 
 import { Loader2, Bike } from 'lucide-react'
 
-// 1. Carregamento Preguiçoso (Lazy Loading) para Performance
+// 1. Carregamento Preguiçoso (Lazy Loading)
 const Login = lazy(() => import('./pages/Login'))
 const MotoristaDashboard = lazy(() => import('./pages/MotoristaDashboard'))
 const PassageiroDashboard = lazy(() => import('./pages/PassageiroDashboard'))
@@ -24,17 +24,15 @@ const TelaCarregando = () => (
   </div>
 )
 
-// 3. Componente de Guarda de Rota com Redirecionamento Inteligente
+// 3. Componente de Guarda de Rota
 const RotaPrivada = ({ children, tipoRequerido }) => {
   const { session, loading } = useAuth()
   
   if (loading) return <TelaCarregando />
   if (!session) return <Navigate to="/" />
 
-  // Pega o cargo (role) do usuário nos metadados do Supabase
   const userRole = session.user.user_metadata?.role
 
-  // Se o usuário tentar acessar a rota errada para o perfil dele
   if (tipoRequerido && userRole !== tipoRequerido) {
     return <Navigate to={userRole === 'motorista' ? '/motorista' : '/passageiro'} />
   }
@@ -42,7 +40,7 @@ const RotaPrivada = ({ children, tipoRequerido }) => {
   return children
 }
 
-// 4. Lógica de Redirecionamento da Home (Se já estiver logado)
+// 4. Lógica de Redirecionamento da Home
 const HomeRedirect = () => {
   const { session, loading } = useAuth()
   
@@ -57,14 +55,12 @@ const HomeRedirect = () => {
 
 export default function App() {
   return (
-    <AuthProvider> {/* Certifique-se que o useAuth.jsx exporta EXATAMENTE este nome */}
+    <AuthProvider> 
       <Router>
         <Suspense fallback={<TelaCarregando />}>
           <Routes>
-            {/* Rota Inicial com verificação de Login */}
             <Route path="/" element={<HomeRedirect />} />
 
-            {/* Rotas Privadas do Motorista */}
             <Route 
               path="/motorista" 
               element={
@@ -83,7 +79,6 @@ export default function App() {
               } 
             />
 
-            {/* Rotas Privadas do Passageiro */}
             <Route 
               path="/passageiro" 
               element={
@@ -93,7 +88,6 @@ export default function App() {
               } 
             />
 
-            {/* Redirecionar qualquer rota inválida para a Home */}
             <Route path="*" element={<Navigate to="/" />} />
           </Routes>
         </Suspense>
