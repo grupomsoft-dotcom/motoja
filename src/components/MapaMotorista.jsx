@@ -1,32 +1,36 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useState, useCallback } from 'react'
 import { MapContainer, TileLayer, Marker, Polyline, useMap, ZoomControl } from 'react-leaflet'
 import 'leaflet/dist/leaflet.css'
 import L from 'leaflet'
-import { Navigation, Loader2, Map as MapIcon } from 'lucide-react'
+import { Navigation, Loader2, Map as MapIcon, AlertTriangle } from 'lucide-react'
 
-// 1. Configuração de Ícones Personalizados (Estilo MotoJá)
+// Corrigir ícones padrão do Leaflet que às vezes somem no build
+delete L.Icon.Default.prototype._getIconUrl
+L.Icon.Default.mergeOptions({
+  iconRetinaUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon-2x.png',
+  iconUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon.png',
+  shadowUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-shadow.png',
+})
+
+// Ícones Personalizados MotoJá
 const iconMoto = new L.Icon({
   iconUrl: 'https://cdn-icons-png.flaticon.com/512/1986/1986937.png',
   iconSize: [45, 45],
   iconAnchor: [22, 45],
-  popupAnchor: [0, -40],
 })
 
 const iconPassageiro = new L.Icon({
-  iconUrl: 'https://cdn-icons-png.flaticon.com/512/684/684908.png', // Pin de destino
+  iconUrl: 'https://cdn-icons-png.flaticon.com/512/684/684908.png',
   iconSize: [35, 35],
   iconAnchor: [17, 35],
 })
 
-// Componente para centralizar o mapa suavemente quando a posição muda
+// Componente para centralizar o mapa suavemente
 function RecenterMap({ coords }) {
   const map = useMap()
   useEffect(() => {
     if (coords) {
-      map.flyTo(coords, map.getZoom(), {
-        animate: true,
-        duration: 1.5
-      })
+      map.flyTo(coords, map.getZoom(), { animate: true, duration: 1.5 })
     }
   }, [coords, map])
   return null
@@ -34,87 +38,93 @@ function RecenterMap({ coords }) {
 
 export default function MapaMotorista({ corrida }) {
   const [minhaPos, setMinhaPos] = useState(null)
-  const [mapReady, setMapReady] = useState(false)
+  const [erroGps, setErroGps] = useState(null)
 
-  // 2. Rastreamento de GPS em Tempo Real
-  useEffect(() => {
-    if (!navigator.geolocation) {
-      console.error("Geolocalização não suportada")
-      return
-    }
-
-    const watchId = navigator.geolocation.watchPosition(
-      (pos) => {
-        const { latitude, longitude } = pos.coords
-        setMinhaPos([latitude, longitude])
-      },
-      (err) => console.error("Erro GPS:", err),
-      { 
-        enableHighAccuracy: true, 
-        maximumAge: 1000, 
-        timeout: 5000 
-      }
-    )
-
-    return () => navigator.geolocation.clearWatch(watchId)
+  // Função para lidar com a posição encontrada
+  const handleSuccess = useCallback((pos) => {
+    const { latitude, longitude } = pos.coords
+    setMinhaPos([latitude, longitude])
+    setErroGps(null)
   }, [])
 
-  // Coordenadas do passageiro vindas da prop 'corrida'
+  // Função para lidar com erros de GPS (Timeout, Permissão, etc)
+  const handleError = useCallback((err) => {
+    console.warn(`Erro GPS (${err.code}): ${err.message}`)
+    setErroGps(err.code)
+    
+    // Se der timeout (code 3), tenta uma vez sem alta precisão (mais rápido em desktops)
+    if (err.code === 3) {
+      navigator.geolocation.getCurrentPosition(handleSuccess, null, {
+        enableHighAccuracy: false,
+        timeout: 5000
+      })
+    }
+  }, [handleSuccess])
+
+  useEffect(() => {
+    if (!navigator.geolocation) return
+
+    const watchId = navigator.geolocation.watchPosition(handleSuccess, handleError, {
+      enableHighAccuracy: true, // Tenta GPS primeiro
+      maximumAge: 5000,
+      timeout: 10000 // 10 segundos antes de dar erro 3
+    })
+
+    return () => navigator.geolocation.clearWatch(watchId)
+  }, [handleSuccess, handleError])
+
   const posPassageiro = corrida?.origem_lat && corrida?.origem_lng 
     ? [corrida.origem_lat, corrida.origem_lng] 
     : null
 
-  // 3. Estado de Carregamento (Loading)
+  // Tela de Carregamento ou Erro
   if (!minhaPos) {
     return (
-      <div className="h-full w-full flex flex-col items-center justify-center bg-slate-900/50 backdrop-blur-sm gap-4 transition-all">
-        <div className="relative flex items-center justify-center">
-          <Loader2 className="w-10 h-10 text-indigo-500 animate-spin" />
-          <Navigation className="w-4 h-4 text-white absolute rotate-45" />
-        </div>
-        <div className="text-center">
-          <p className="text-white font-bold text-sm tracking-widest uppercase">Sincronizando GPS</p>
-          <p className="text-slate-400 text-[10px]">Aguardando sinal de satélite...</p>
-        </div>
+      <div className="h-full w-full flex flex-col items-center justify-center bg-slate-900/90 gap-4 p-6 text-center">
+        {erroGps === 3 ? (
+          <>
+            <AlertTriangle className="w-10 h-10 text-yellow-500 animate-pulse" />
+            <p className="text-white font-bold text-sm uppercase">Sinal de GPS Fraco</p>
+            <p className="text-slate-400 text-xs">Tente mover o dispositivo ou use uma rede Wi-Fi.</p>
+          </>
+        ) : (
+          <>
+            <Loader2 className="w-10 h-10 text-indigo-500 animate-spin" />
+            <p className="text-white font-bold text-sm uppercase">Sincronizando Localização...</p>
+          </>
+        )}
       </div>
     )
   }
 
   return (
-    <div className="h-full w-full relative group overflow-hidden rounded-2xl border border-white/5">
+    <div className="h-full w-full relative overflow-hidden rounded-2xl border border-white/5 shadow-2xl">
       <MapContainer 
         center={minhaPos} 
         zoom={16} 
         zoomControl={false} 
         className="h-full w-full z-0"
-        whenReady={() => setMapReady(true)}
       >
-        {/* Camada Dark Mode Premium */}
         <TileLayer 
           url="https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png" 
-          attribution='&copy; <a href="https://carto.com/">CARTO</a>'
+          attribution='&copy; CARTO'
         />
         
-        {/* Marcador da Moto (Motorista) */}
         <Marker position={minhaPos} icon={iconMoto} />
 
-        {/* Lógica de Corrida Ativa */}
         {posPassageiro && (
           <>
             <Marker position={posPassageiro} icon={iconPassageiro} />
-            
-            {/* Linha de Trajeto (Neon Style) */}
             <Polyline 
               positions={[minhaPos, posPassageiro]} 
               pathOptions={{
                 color: '#6366f1', 
-                weight: 5,
-                opacity: 0.7,
-                dashArray: '1, 12',
-                lineCap: 'round'
+                weight: 4,
+                opacity: 0.8,
+                dashArray: '10, 15',
+                lineJoin: 'round'
               }}
             />
-            
             <RecenterMap coords={minhaPos} />
           </>
         )}
@@ -122,28 +132,18 @@ export default function MapaMotorista({ corrida }) {
         <ZoomControl position="bottomright" />
       </MapContainer>
 
-      {/* 4. UI Overlays (Indicadores de Status) */}
-      <div className="absolute top-4 left-4 z-[1000] pointer-events-none space-y-2">
-        <div className="bg-slate-900/90 backdrop-blur-md border border-white/10 px-3 py-2 rounded-xl flex items-center gap-3 shadow-2xl">
-          <div className="flex h-2 w-2 relative">
-            <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
-            <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
-          </div>
+      {/* Indicadores de Status */}
+      <div className="absolute top-4 left-4 z-[1000] space-y-2 pointer-events-none">
+        <div className="bg-slate-900/95 backdrop-blur-md border border-white/10 px-3 py-2 rounded-xl flex items-center gap-2 shadow-xl">
+          <div className="h-2 w-2 rounded-full bg-emerald-500 animate-pulse" />
           <span className="text-[10px] font-black text-white uppercase tracking-tighter">
-            {corrida ? 'Em Atendimento' : 'Online / Patrulhando'}
+            {corrida ? 'Rota Ativa' : 'Aguardando Chamadas'}
           </span>
         </div>
-
-        {corrida && (
-          <div className="bg-indigo-600/90 backdrop-blur-md border border-indigo-400/30 px-3 py-2 rounded-xl flex items-center gap-3 shadow-2xl animate-in slide-in-from-left-2">
-             <MapIcon size={14} className="text-white" />
-             <span className="text-[10px] font-bold text-white uppercase">Rota Traçada</span>
-          </div>
-        )}
       </div>
 
-      {/* Gradiente de profundidade nas bordas */}
-      <div className="absolute inset-0 pointer-events-none shadow-[inset_0_0_100px_rgba(0,0,0,0.5)] z-[999]"></div>
+      {/* Overlay de Vinheta (Estético) */}
+      <div className="absolute inset-0 pointer-events-none shadow-[inset_0_0_80px_rgba(0,0,0,0.4)] z-[999]"></div>
     </div>
   )
 }
