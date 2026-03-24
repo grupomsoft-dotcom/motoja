@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useState, useMemo } from 'react'
 import { supabase } from './lib/supabase'
 import { useAuth } from './hooks/useAuth'
 import Login from './pages/Login'
@@ -6,16 +6,17 @@ import PassageiroDashboard from './pages/PassageiroDashboard'
 import HistoricoPassageiro from './pages/HistoricoPassageiro'
 import MotoristaDashboard from './pages/MotoristaDashboard'
 import HistoricoMotorista from './pages/HistoricoMotorista'
+import { LogOut, User, Bike, History, Rocket, Loader2 } from 'lucide-react'
 
 function App() {
-  const { session, loading } = useAuth()
-  const [view, setView] = useState('passageiro')
+  const { session, loading: authLoading } = useAuth()
+  const [view, setView] = useState(null) // Começa nulo para definir após o perfil
   const [perfil, setPerfil] = useState(null)
   const [perfilLoading, setPerfilLoading] = useState(true)
 
   useEffect(() => {
-    const carregarPerfil = async () => {
-      if (!session) {
+    async function carregarPerfil() {
+      if (!session?.user?.id) {
         setPerfil(null)
         setPerfilLoading(false)
         return
@@ -27,138 +28,129 @@ function App() {
         .eq('id', session.user.id)
         .single()
 
-      if (error) {
-        console.error('Erro ao carregar perfil:', error)
+      if (!error && data) {
+        setPerfil(data)
+        // Define a view inicial baseada no cargo
+        setView(data.role === 'motorista' ? 'motorista' : 'passageiro')
       }
-
-      setPerfil(data)
       setPerfilLoading(false)
-
-      if (data?.role === 'motorista') {
-        setView('motorista')
-      } else {
-        setView('passageiro')
-      }
     }
 
     carregarPerfil()
   }, [session])
 
-  if (loading || perfilLoading) {
+  // Mapeamento de views para limpar o JSX
+  const views = {
+    passageiro: <PassageiroDashboard />,
+    historico_passageiro: <HistoricoPassageiro />,
+    motorista: <MotoristaDashboard />,
+    historico_motorista: <HistoricoMotorista />,
+  }
+
+  const isMotorista = perfil?.role === 'motorista'
+
+  if (authLoading || perfilLoading) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-500 to-purple-600">
-        <div className="text-white text-xl animate-pulse px-4 text-center">
-          🚀 Carregando MOTOJÁ...
+      <div className="min-h-screen flex flex-col items-center justify-center bg-[#0f172a]">
+        <div className="relative">
+          <Rocket className="w-12 h-12 text-indigo-500 animate-bounce" />
+          <Loader2 className="w-16 h-16 text-indigo-500/20 animate-spin absolute -top-2 -left-2" />
         </div>
+        <p className="mt-4 text-slate-400 font-medium animate-pulse">Preparando sua rota...</p>
       </div>
     )
   }
 
-  if (!session) {
-    return <Login />
-  }
-
-  const isMotorista = perfil?.role === 'motorista'
-  const isPassageiro = !isMotorista
+  if (!session) return <Login />
 
   return (
-    <div className="min-h-screen flex flex-col bg-slate-900">
-      {/* Barra superior */}
-      <div className="bg-gradient-to-br from-blue-500 to-purple-600 px-4 py-3 sm:px-6 sm:py-4 shadow-lg">
-        <div className="max-w-4xl mx-auto">
-          <header className="flex items-center justify-between gap-3">
-            <div className="flex items-center gap-3 min-w-0">
-              <h1 className="text-2xl sm:text-3xl font-bold text-white drop-shadow">
-                🚀 MOTOJÁ
-              </h1>
-              <span className="hidden sm:inline-flex bg-white/20 px-3 py-1 rounded-full text-white text-xs font-semibold truncate">
-                {perfil?.nome || session.user.email}
-              </span>
+    <div className="min-h-screen flex flex-col bg-[#0f172a] text-slate-100">
+      {/* Navbar Moderna */}
+      <nav className="sticky top-0 z-50 bg-[#0f172a]/80 backdrop-blur-xl border-b border-white/5">
+        <div className="max-w-5xl mx-auto px-4 py-4">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <div className="bg-indigo-600 p-1.5 rounded-lg shadow-lg shadow-indigo-600/20">
+                <Rocket size={20} className="text-white" />
+              </div>
+              <h1 className="text-xl font-black tracking-tighter">MOTOJÁ</h1>
             </div>
-            <button
-              onClick={() => supabase.auth.signOut()}
-              className="shrink-0 bg-white/15 hover:bg-white/25 px-3 py-1.5 rounded-xl text-white text-xs sm:text-sm font-semibold transition"
-            >
-              Sair
-            </button>
-          </header>
 
-          {/* Badge pequena com função/role no mobile */}
-          <div className="mt-2 flex items-center justify-between">
-            <span className="inline-flex sm:hidden bg-white/15 px-2.5 py-1 rounded-full text-[11px] text-white font-medium">
-              {perfil?.nome || session.user.email}
-            </span>
-            <span className="ml-auto bg-black/20 px-2.5 py-0.5 rounded-full text-[11px] text-white/90 uppercase tracking-wide">
-              {perfil?.role || 'sem perfil'}
-            </span>
+            <div className="flex items-center gap-3">
+              <div className="hidden sm:flex flex-col items-end">
+                <span className="text-xs font-bold text-white">{perfil?.nome || 'Usuário'}</span>
+                <span className="text-[10px] text-indigo-400 uppercase font-black">{perfil?.role}</span>
+              </div>
+              <button
+                onClick={() => supabase.auth.signOut()}
+                className="p-2.5 bg-white/5 hover:bg-red-500/10 hover:text-red-400 rounded-xl transition-all border border-white/5"
+              >
+                <LogOut size={18} />
+              </button>
+            </div>
           </div>
 
-          {/* Menus separados */}
-          <div className="mt-3 flex flex-wrap gap-2">
-            {isPassageiro && (
+          {/* Seletor de Abas (Tabs) */}
+          <div className="flex gap-2 mt-5 p-1 bg-white/5 rounded-2xl w-fit">
+            {isMotorista ? (
               <>
-                <button
-                  onClick={() => setView('passageiro')}
-                  className={`px-3 py-1.5 rounded-full text-xs font-semibold ${
-                    view === 'passageiro'
-                      ? 'bg-emerald-400 text-slate-900'
-                      : 'bg-white/15 text-white hover:bg-white/25'
-                  }`}
-                >
-                  Passageiro
-                </button>
-
-                <button
-                  onClick={() => setView('historico_passageiro')}
-                  className={`px-3 py-1.5 rounded-full text-xs font-semibold ${
-                    view === 'historico_passageiro'
-                      ? 'bg-slate-800 text-white'
-                      : 'bg-white/15 text-white hover:bg-white/25'
-                  }`}
-                >
-                  Histórico de corridas
-                </button>
-              </>
-            )}
-
-            {isMotorista && (
-              <>
-                <button
+                <TabButton 
+                  active={view === 'motorista'} 
                   onClick={() => setView('motorista')}
-                  className={`px-3 py-1.5 rounded-full text-xs font-semibold ${
-                    view === 'motorista'
-                      ? 'bg-orange-400 text-slate-900'
-                      : 'bg-white/15 text-white hover:bg-white/25'
-                  }`}
-                >
-                  Motorista
-                </button>
-
-                <button
+                  icon={<Bike size={14} />}
+                  label="Painel"
+                />
+                <TabButton 
+                  active={view === 'historico_motorista'} 
                   onClick={() => setView('historico_motorista')}
-                  className={`px-3 py-1.5 rounded-full text-xs font-semibold ${
-                    view === 'historico_motorista'
-                      ? 'bg-slate-800 text-white'
-                      : 'bg-white/15 text-white hover:bg-white/25'
-                  }`}
-                >
-                  Histórico de atendimentos
-                </button>
+                  icon={<History size={14} />}
+                  label="Histórico"
+                />
+              </>
+            ) : (
+              <>
+                <TabButton 
+                  active={view === 'passageiro'} 
+                  onClick={() => setView('passageiro')}
+                  icon={<User size={14} />}
+                  label="Pedir Moto"
+                />
+                <TabButton 
+                  active={view === 'historico_passageiro'} 
+                  onClick={() => setView('historico_passageiro')}
+                  icon={<History size={14} />}
+                  label="Minhas Viagens"
+                />
               </>
             )}
           </div>
         </div>
-      </div>
+      </nav>
 
-      {/* Conteúdo principal ocupa o resto da tela */}
-      <div className="flex-1">
-        {isPassageiro && view === 'passageiro' && <PassageiroDashboard />}
-        {isPassageiro && view === 'historico_passageiro' && <HistoricoPassageiro />}
-
-        {isMotorista && view === 'motorista' && <MotoristaDashboard />}
-        {isMotorista && view === 'historico_motorista' && <HistoricoMotorista />}
-      </div>
+      {/* Área de Conteúdo */}
+      <main className="flex-1 overflow-y-auto">
+        <div className="max-w-5xl mx-auto h-full">
+          {views[view]}
+        </div>
+      </main>
     </div>
+  )
+}
+
+// Subcomponente de Botão para as abas
+function TabButton({ active, onClick, icon, label }) {
+  return (
+    <button
+      onClick={onClick}
+      className={`flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-bold transition-all ${
+        active 
+          ? 'bg-indigo-600 text-white shadow-lg shadow-indigo-600/20' 
+          : 'text-slate-400 hover:text-white hover:bg-white/5'
+      }`}
+    >
+      {icon}
+      {label}
+    </button>
   )
 }
 
