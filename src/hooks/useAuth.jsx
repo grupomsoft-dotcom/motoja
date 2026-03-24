@@ -21,8 +21,34 @@ export const AuthProvider = ({ children }) => {
     return () => subscription.unsubscribe()
   }, [])
 
+  // FUNÇÃO DE LOGIN
+  const signIn = async (email, password) => {
+    const { data, error } = await supabase.auth.signInWithPassword({
+      email,
+      password,
+    })
+    if (error) throw error
+    return data
+  }
+
+  // FUNÇÃO DE CADASTRO (Com metadados de Role)
+  const signUp = async (email, password, metadata) => {
+    const { data, error } = await supabase.auth.signUp({
+      email,
+      password,
+      options: {
+        data: metadata, // Aqui enviamos o { role: 'motorista' } ou 'passageiro'
+      },
+    })
+    if (error) throw error
+    return data
+  }
+
+  // FUNÇÃO DE LOGOUT
+  const signOut = () => supabase.auth.signOut()
+
   return (
-    <AuthContext.Provider value={{ session, loading }}>
+    <AuthContext.Provider value={{ session, loading, signIn, signUp, signOut }}>
       {children}
     </AuthContext.Provider>
   )
