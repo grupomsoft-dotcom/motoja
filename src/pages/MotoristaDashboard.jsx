@@ -2,8 +2,7 @@ import { useState, useEffect } from 'react'
 import { supabase } from '../lib/supabase'
 import { useAuth } from '../hooks/useAuth'
 import MapaMotorista from '../components/MapaMotorista'
-import { Bike, MapPin, Check, X, Navigation, shadow, Loader2, AlertCircle } from 'lucide-react'
-
+import { Bike, MapPin, Check, X, Navigation, Loader2, AlertCircle } from 'lucide-react'
 export default function MotoristaDashboard() {
   const { session } = useAuth()
   const [solicitacoes, setSolicitacoes] = useState([])
